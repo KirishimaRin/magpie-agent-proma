@@ -23,3 +23,15 @@ magpie plugin update
 普通 GitHub 插件按分支提交检查更新；固定 commit 不提示更新。社区包的自动更新方式见 Magpie 官方文档。加入社区推荐列表时按 `kind: "agent"` 提交条目，当前不冒用 @magpie-community 命名空间。
 
 CI 的普通测试独立运行；兼容性 job 下载 SHA256 固定的官方 Proma 0.19.58 Debian 发行包，仅解压资源，不安装应用，不使用个人凭据。官方资源布局变化应先检查脚本再修改规则。初次发布后应检查 Actions 的完整结果。
+
+## 源码回退
+
+main 为发布分支。工作区首次快照为 e944a62，标签 baseline-v0.3.2；思考强度首版为 421a546，标签 baseline-v0.4.0。
+
+保持工作区干净，先关闭 Agent 接入、退出 Proma 并停止 Magpie，再切换源码：
+
+```powershell
+git switch --detach baseline-v0.3.2
+```
+
+重启 Magpie、恢复 Agent 接入，等待同步后打开 Proma。恢复当前发布分支使用 `git switch main`，同样重新加载插件。
