@@ -1,9 +1,8 @@
 {
   "name": "magpie-agent-proma",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Magpie Agent plugin for Proma with continuously synchronized models on Windows",
   "type": "module",
-  "main": "./server.js",
   "files": [
     "agent.js",
     "server.js",
@@ -30,7 +29,9 @@
     "icon.svg",
     "LICENSE",
     "docs",
-    "PRIVACY.md"
+    "PRIVACY.md",
+    "index.js",
+    "bridge.hooks.js"
   ],
   "keywords": [
     "magpie-plugin",
@@ -44,7 +45,8 @@
   },
   "magpie": {
     "agent": "./agent.js",
-    "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTYiIGZpbGw9IiMxODNkMmEiLz48cGF0aCBkPSJNMTYgNDRWMjBoOGw4IDEzIDgtMTNoOHYyNGgtOFYzM2wtOCAxMi04LTEydjExeiIgZmlsbD0iI2VhZjRlOSIvPjwvc3ZnPgo="
+    "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTYiIGZpbGw9IiMxODNkMmEiLz48cGF0aCBkPSJNMTYgNDRWMjBoOGw4IDEzIDgtMTNoOHYyNGgtOFYzM2wtOCAxMi04LTEydjExeiIgZmlsbD0iI2VhZjRlOSIvPjwvc3ZnPgo=",
+    "hooks": "./bridge.hooks.js"
   },
   "scripts": {
     "test": "node --test",

@@ -24,6 +24,8 @@
 
 ## 安装
 
+在 **插件 → 发现 → 非官方插件 · GitHub → Agent** 中搜索 `proma`，选择作者 KirishimaRin 的 `magpie-agent-proma`。v0.5.1 修正了发现列表的 Agent 分类；列表尚未刷新时，也可使用下面的地址安装。
+
 在 **Magpie → 插件 → 添加插件** 中输入：
 
 ```text

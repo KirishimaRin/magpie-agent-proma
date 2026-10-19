@@ -56,7 +56,7 @@ async function main() {
   const installedProject = path.join(root, 'config', 'magpie', 'plugins');
   const dependencies = JSON.parse(fs.readFileSync(path.join(installedProject, 'package.json'))).dependencies;
   assert.equal(Object.keys(dependencies || {}).length, 1, 'Expected one isolated Git dependency');
-  const installedEntry = path.join(installedProject, 'node_modules', Object.keys(dependencies)[0], 'server.js');
+  const installedEntry = path.join(installedProject, 'node_modules', Object.keys(dependencies)[0], 'index.js');
   assert(fs.existsSync(installedEntry), 'Installed Git package server entry missing');
   if (bun === 'auto') {
     const base = path.join(process.env.XDG_CACHE_HOME || path.join(require('node:os').homedir(), '.cache'), 'magpie', 'bun');

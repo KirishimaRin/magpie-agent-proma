@@ -8,11 +8,30 @@ const pkg = require('./package.json');
 
 test('documented Bun server entry exports only a plugin function, with no auxiliary exports', async () => {
   assert.equal(pkg.type, 'module');
-  const entry = pkg.exports?.['./server'] || pkg.main || pkg.exports?.['.'];
+  const entry = pkg.exports?.['./server'] || pkg.main || pkg.exports?.['.'] || './index.js';
   assert.equal(typeof entry, 'string');
   const module = await import(entry);
   assert.deepEqual(Object.keys(module), ['default']);
   assert.equal(typeof module.default, 'function');
+});
+
+test('GitHub discovery classifies the package as Agent while the Bun service stays loadable', async () => {
+  // The discovery rule checks main/exports; the runtime also checks gateway hooks and index files.
+  assert.equal(pkg.main, undefined);
+  assert.equal(pkg.exports, undefined);
+  assert.equal(pkg.magpie.middleware, undefined);
+  assert.equal(typeof pkg.magpie.agent, 'string');
+  assert(fs.existsSync('./index.js'));
+  const hook = await import(pkg.magpie.hooks);
+  assert.deepEqual(Object.keys(hook), ['onRequest']);
+  const reports = [];
+  const body = { model: 'test/model', messages: [{ content: 'private-content' }] };
+  const before = JSON.stringify(body);
+  for (const agent of ['proma', 'codex']) {
+    assert.equal(await hook.onRequest(body, { agent, report: (...args) => reports.push(args) }), undefined);
+  }
+  assert.equal(JSON.stringify(body), before);
+  assert.deepEqual(reports, [['ready', 0], ['skipped', 0]]);
 });
 
 test('Agent contract supports client-side selection, dotted ownership and bounded sandbox code', async () => {
@@ -50,7 +69,7 @@ test('npm package includes the entire runtime module closure and excludes local 
     : execFileSync('npm', ['pack', '--dry-run', '--json'], { encoding: 'utf8' });
   const files = new Set(JSON.parse(output)[0].files.map(file => file.path));
   assert(files.has('package.json'));
-  const pending = [pkg.main, pkg.magpie.agent], visited = new Set();
+  const pending = [pkg.main || './index.js', pkg.magpie.agent, pkg.magpie.hooks].filter(Boolean), visited = new Set();
   while (pending.length) {
     const file = path.posix.normalize(pending.pop());
     if (visited.has(file)) continue;
