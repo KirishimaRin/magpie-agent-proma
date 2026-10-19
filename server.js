@@ -1,6 +1,8 @@
 // OpenCode server entry, loaded by Magpie's Bun plugin host.
 import engine from './sync-engine.cjs';
 import proxy from './native-proxy.cjs';
+import capabilities from './reasoning-capabilities.cjs';
+import fs from 'node:fs';
 let started = false;
 
 export default async function PromaBridge() {
@@ -15,6 +17,10 @@ export default async function PromaBridge() {
     busy = true;
     try {
       proxyServer ||= await proxy.startNativeProxy(sync.manifest);
+      if (fs.existsSync(sync.manifest)) {
+        const bridge = engine.parseBridge(JSON.parse(fs.readFileSync(sync.manifest, 'utf8').replace(/^\uFEFF/, '')));
+        await capabilities.refreshCapabilities(bridge, sync.manifest);
+      }
       const result = await sync.tick();
       const status = JSON.stringify(result);
       if (status !== previousStatus) {

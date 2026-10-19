@@ -4,7 +4,8 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const { buildRoutes, enrichGroups } = require('./native-channels.cjs');
 const { parseBridge } = require('./sync-engine.cjs');
-const VERSION = '0.3.2';
+const { enrichCapabilities } = require('./reasoning-capabilities.cjs');
+const VERSION = '0.4.0';
 const LIMIT = 16 * 1024 * 1024;
 
 function authorized(request, key, url) {
@@ -61,6 +62,13 @@ function createNativeProxy({ loadBridge, requestUpstream = http.request }) {
       const modelId = google ? decodeURIComponent(google[1]) : body.model;
       const model = route.models.get(modelId);
       if (!model) return fail(response, 400, '该模型不在此渠道的 Magpie 模型目录中。');
+      if (model.templateLevels) {
+        const effort = google ? body.generationConfig?.thinkingConfig?.thinkingLevel
+          : body.reasoning?.effort || body.reasoning_effort || body.output_config?.effort;
+        if (typeof effort === 'string' && !model.templateLevels.includes(effort.toLowerCase())) {
+          return fail(response, 400, `该能力模板支持：${model.templateLevels.join(', ')}`);
+        }
+      }
       const gateway = new URL(bridge.endpoint).origin;
       const target = google ? new URL(`${gateway}/v1beta/models/${model.upstream.split('/').map(encodeURIComponent).join('/')}:${google[2]}`) : new URL(`${gateway}${suffix}`);
       if (google && url.searchParams.get('alt') === 'sse') target.searchParams.set('alt', 'sse');
@@ -98,7 +106,7 @@ function listen(server, port = 3426) {
 }
 
 async function startNativeProxy(manifest) {
-  const loadBridge = () => fs.existsSync(manifest) ? enrichGroups(parseBridge(JSON.parse(fs.readFileSync(manifest, 'utf8').replace(/^\uFEFF/, '')))) : null;
+  const loadBridge = () => fs.existsSync(manifest) ? enrichCapabilities(enrichGroups(parseBridge(JSON.parse(fs.readFileSync(manifest, 'utf8').replace(/^\uFEFF/, '')))), manifest) : null;
   const server = createNativeProxy({ loadBridge });
   try {
     await listen(server);

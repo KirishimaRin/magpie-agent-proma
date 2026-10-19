@@ -2,7 +2,7 @@
 
 把 Magpie 已配置的供应商、订阅模型和路由组接入 Proma。Magpie 中出现 Proma Agent，开启接入后，模型目录持续同步到 Proma 的专用渠道，模型在 Proma 内选择。
 
-基于 [官方插件开发文档](https://usemagpie.ai/docs/zh/plugins) 的 **Agent 插件**与 **OpenCode 服务端入口**，当前版本 `0.3.2`。支持 Windows；已验证本机 Magpie `0.1.1290` 和 Proma `0.19.58` 的配置加密格式。
+基于 [官方插件开发文档](https://usemagpie.ai/docs/zh/plugins) 的 **Agent 插件**与 **OpenCode 服务端入口**，当前版本 `0.4.0`。支持 Windows；已验证本机 Magpie `0.1.1290` 和 Proma `0.19.58` 的配置加密格式。
 
 ## 安装与使用
 
@@ -31,13 +31,43 @@
 
 Proma 0.19.58 尚未识别 GPT-6.1，所以插件对 `gpt-6.1-sol` 使用本地 `gpt-6-astra` 能力别名，显示 low/medium/high/xhigh/max；名称仍显示 GPT-6.1，发往 Magpie 的 ID 仍是原始 `供应商/gpt-6.1-sol`。DeepSeek V4.1 Flash 使用 V4 Flash 的协议能力别名；免费 GLM 等后缀也在本地整理。实际模型 ID 保存在 `magpieModelId` 中；别名独占渠道以避免与同供应商的其他模型混淆。
 
-可显示档位取决于当前 Proma 的能力表。没有原生能力名称的供应商通用别名不单独导入。升级后在 Magpie 关闭再开启本插件以加载代理，完全退出 Proma，等待同步后重开，并改选原生渠道。旧会话若仍引用已删除的全模型渠道，请重新选择原生渠道中的模型。
+可显示档位使用当前 Proma 的能力表；0.4.0 为缺失菜单的模型增加下述自动模板匹配。升级后完全退出 Proma，在 Magpie 关闭再开启本插件，并从托盘退出、重启 Magpie 以加载新代理；等待同步后重开 Proma，改选原生渠道。旧会话若仍引用已删除的全模型渠道，请重新选择原生渠道中的模型。
 
 ### 路由组（0.3.2）
 
 每个路由组有自己的「Magpie · 路由组 · 组名」渠道。插件只读 Magpie `providers.json` 的成员关系，包括嵌套组；未写入文件的自动组按 Magpie 自动组 ID 与目录模型的精确 slug 匹配能力族。成员属于相同能力族时使用对应原生 ID、协议和思考档位。混合模型、未知能力或循环成员配置使用通用 OpenAI Chat 渠道。
 
 实际请求的模型始终是 `group/组ID`，由 Magpie 自行执行顺序、轮询、智能选择等已有规则。成员配置变化后持续同步目录。删除过的 54 模型总渠道保持删除。
+
+## 自动匹配思考能力（0.4.0）
+
+插件保留已识别模型的原生接入，对缺失菜单的模型按能力数据选择现有 Proma 模板，无需修改 Proma 安装文件。
+
+数据优先级：Magpie `/v1/models` 的 `reasoning_levels` → Agent 目录的 `efforts` → models.dev `reasoning_options`。Magpie 明确返回空档位时保持该声明；`reasoning: true` 本身只说明模型具备推理能力。
+
+模板包括 GPT-6 Astra（low/medium/high/xhigh/max）、GLM-5.3（low/high/max）、Gemini 3.1 Pro（low/medium/high）、Gemini 3 Flash（minimal/low/medium/high）。只选择菜单全部档位都受供应商支持的模板，优先覆盖更多档位。原生菜单没有的 ultra 等额外档位，以及没有可匹配模板的组合，列在能力报告中；不把档位改名或偷偷降级。
+
+例如 Step 的 low/medium/high 对应 Gemini 菜单模板；界面名称和实际供应商模型仍是 Step。代理向 Magpie 的 Google 协议入口发送 Step 的完整真实 ID，由 Magpie 处理协议转换。路由组始终发送 group/组ID。
+
+Magpie 目录每 5 分钟刷新，models.dev 每 24 小时刷新。新目录 ID 触发提前检查；失败使用已有缓存并限制重试频率。缓存为 `~/.proma/magpie-capabilities.json`，只含模型能力，不含接入 Key；访问 models.dev 不发送本机配置或凭据。
+
+```powershell
+node capability-report.cjs
+```
+
+报告显示每个模型的目录档位、数据来源、匹配模板和暂未覆盖档位。更新配置后请重新选择对应模型；使用 Google/Responses 渠道的 Agent 会话选择 Pi。
+
+## Git 基线与回退
+
+第一次提交 `e944a62` 保存 v0.3.2，标签为 `baseline-v0.3.2`。新功能在 `feature/dynamic-reasoning` 分支，`main` 保持基线。
+
+回退时先退出 Proma，在 Magpie 关闭本插件，然后执行：
+
+```powershell
+git switch main
+```
+
+再开启插件，从托盘退出并重启 Magpie，等待同步后打开 Proma。重新测试新功能使用 `git switch feature/dynamic-reasoning`，同样重启 Magpie 加载插件。切换前保持工作区干净；现有配置修改前仍会自动备份。
 
 ## 两个入口的分工
 

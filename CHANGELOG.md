@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+- 读取 Magpie reasoning_levels，models.dev reasoning_options 补充目录缺失项，支持缓存、定期刷新和离线保留。
+- 对缺少原生思考菜单的模型自动匹配已验证的 Proma 能力模板，保持真实模型名称和供应商路由。
+- 模板菜单仅暴露供应商明确支持的档位，代理校验参数，保留原有原生菜单及路由组。
+- 增加 capability-report.cjs 查看各模型的数据来源、匹配模板和覆盖范围。
+- Git 基线为 baseline-v0.3.2，功能开发在 feature/dynamic-reasoning 分支。
+
 ## 0.3.2
 
 - 单独导入所有 Magpie 路由组，渠道名称为「Magpie · 路由组 · 组名」。

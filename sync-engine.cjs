@@ -5,6 +5,7 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const core = require('./magpie-proma.cjs');
 const { mergeNativeChannels, enrichGroups, NATIVE_PREFIX } = require('./native-channels.cjs');
+const { enrichCapabilities, normalizeLevels } = require('./reasoning-capabilities.cjs');
 const MANAGED_ID = 'magpie-proma-agent-v1';
 
 function parseBridge(document) {
@@ -23,7 +24,9 @@ function parseBridge(document) {
   for (const model of bridge.models) {
     if (typeof model?.id !== 'string' || !model.id.trim() || !model.id.includes('/')) throw new Error('模型必须使用完整的供应商/模型 ID。');
     if (!seen.has(model.id)) {
-      models.push({ id: model.id, name: typeof model.name === 'string' && model.name.trim() ? model.name : model.id });
+      models.push({ id: model.id, name: typeof model.name === 'string' && model.name.trim() ? model.name : model.id,
+        ...(Array.isArray(model.efforts) ? { efforts: normalizeLevels(model.efforts) } : {}),
+      });
       seen.add(model.id);
     }
   }
@@ -36,7 +39,7 @@ class SyncEngine {
     this.file = path.join(home, '.proma', 'channels.json');
     this.manifest = path.join(home, '.proma', 'magpie-bridge.json');
     this.state = path.join(appData, '@proma', 'electron', 'Local State');
-    this.deps = { ...core, enrichGroups, ...dependencies };
+    this.deps = { ...core, enrichGroups, enrichCapabilities, ...dependencies };
   }
 
   async tick({ checkOnly = false, remove = false } = {}) {
@@ -44,7 +47,7 @@ class SyncEngine {
     if (!fs.existsSync(this.file)) return { status: '等待 Proma 初始化' };
     if (!remove && !fs.existsSync(this.manifest)) return { status: '等待在 Magpie Agent 页开启 Proma 接入' };
     const manifestBytes = remove ? null : fs.readFileSync(this.manifest);
-    const bridge = remove ? null : this.deps.enrichGroups(parseBridge(JSON.parse(manifestBytes.toString('utf8').replace(/^\uFEFF/, ''))));
+    const bridge = remove ? null : this.deps.enrichCapabilities(this.deps.enrichGroups(parseBridge(JSON.parse(manifestBytes.toString('utf8').replace(/^\uFEFF/, '')))), this.manifest);
     const original = fs.readFileSync(this.file);
     const stateStamp = fs.existsSync(this.state) ? String(fs.statSync(this.state).mtimeMs) : '';
     const fingerprint = (configBytes) => crypto.createHash('sha256').update(manifestBytes).update(JSON.stringify(bridge?.models)).update(configBytes).update(stateStamp).digest('hex');

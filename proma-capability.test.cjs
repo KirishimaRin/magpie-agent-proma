@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { nativeModel } = require('./native-channels.cjs');
+const { TEMPLATES } = require('./reasoning-capabilities.cjs');
 
 test('installed Proma recognizes reasoning profiles after native routing', { skip: !process.env.PROMA_TEST_ASAR }, () => {
   const fd = fs.openSync(process.env.PROMA_TEST_ASAR, 'r');
@@ -35,5 +36,14 @@ test('installed Proma recognizes reasoning profiles after native routing', { ski
     const profile = context.profile({ modelId: native.id, transport });
     assert(profile?.levels.includes('high'), `${id} has no high reasoning option`);
     assert(profile?.levels.length > 1);
+  }
+  for (const template of TEMPLATES.filter(t => t.protocol !== 'google')) {
+    const profile = context.profile({ modelId: template.id, transport: template.protocol === 'responses' ? 'openai-responses' : 'anthropic-messages' });
+    assert.deepEqual(Array.from(profile.levels), template.levels);
+  }
+  const gemini = section('// ../../packages/shared/src/utils/gemini-model-capabilities.ts', '\n// ../../packages/shared/src/');
+  vm.runInContext(gemini + ';init_gemini_model_capabilities();this.gemini=getGeminiModelCapability;', context, { timeout: 1000 });
+  for (const template of TEMPLATES.filter(t => t.protocol === 'google')) {
+    assert.deepEqual(Array.from(context.gemini(template.id).thinkingLevels), template.levels);
   }
 });

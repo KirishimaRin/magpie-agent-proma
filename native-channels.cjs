@@ -3,10 +3,11 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const { knownNativeMenu, matchTemplate } = require('./reasoning-capabilities.cjs');
 const NATIVE_PREFIX = 'magpie-proma-native-';
 const PROXY_ORIGIN = 'http://127.0.0.1:3426';
 
-function nativeModel(model) {
+function baseNativeModel(model) {
   const separator = model.id.lastIndexOf('/');
   const source = model.id.slice(0, separator);
   const rawId = model.id.slice(separator + 1);
@@ -32,6 +33,22 @@ function nativeModel(model) {
     : /^gemini-/i.test(id) ? 'google'
       : /^(?:claude-|deepseek-|kimi-|glm-)/i.test(id) ? 'anthropic' : 'chat';
   return { source, bucket: id === rawId ? source : `${source}@${rawId}`, alias: id !== rawId ? rawId : null, id, protocol, upstream: model.id, name: model.name || rawId };
+}
+
+function nativeModel(model) {
+  const slash = model.id.lastIndexOf('/');
+  const source = model.id.slice(0, slash), rawId = model.id.slice(slash + 1);
+  const native = baseNativeModel(model) || (model.capability?.reasoning === true ? {
+    source, bucket: source, id: rawId, protocol: 'chat', upstream: model.id, name: model.name || rawId,
+  } : null);
+  if (!native) return null;
+  const template = !knownNativeMenu(native) && matchTemplate(model.capability);
+  if (!template) return native;
+  return {
+    ...native, id: template.id, protocol: template.protocol,
+    bucket: `${source}@${rawId}`, alias: native.alias || rawId,
+    reasoningTemplate: template.id, templateLevels: template.levels,
+  };
 }
 
 function attachGroupMembers(bridge, groups) {
@@ -102,7 +119,9 @@ function mergeNativeChannels(config, bridge, encryptedKey, now = Date.now()) {
       models: [...route.models.values()].map(model => {
         const old = oldModels.get(model.id);
         const legacy = legacyModels.get(model.upstream);
-        return { ...old, id: model.id, name: old?.name || model.name, enabled: old?.enabled ?? legacy?.enabled ?? true, source: 'fetched', magpieModelId: model.upstream };
+        return { ...old, id: model.id, name: old?.name || model.name, enabled: old?.enabled ?? legacy?.enabled ?? true, source: 'fetched', magpieModelId: model.upstream,
+          ...(model.reasoningTemplate ? { magpieReasoningTemplate: model.reasoningTemplate, magpieMenuLevels: model.templateLevels } : {}),
+        };
       }),
       enabled: previous?.enabled ?? true,
       createdAt: previous?.createdAt || now,

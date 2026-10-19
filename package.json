@@ -1,13 +1,13 @@
 {
   "name": "magpie-agent-proma",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Magpie Agent plugin for Proma with continuously synchronized models on Windows",
   "type": "module",
   "main": "./server.js",
-  "files": ["agent.js", "server.js", "sync-engine.cjs", "native-channels.cjs", "native-proxy.cjs", "magpie-proma.cjs", "README.md", "CHANGELOG.md", "install.ps1", "install.cmd", "uninstall.cmd", "check.cmd", "sync.cmd"],
+  "files": ["agent.js", "server.js", "sync-engine.cjs", "native-channels.cjs", "native-proxy.cjs", "reasoning-capabilities.cjs", "capability-report.cjs", "magpie-proma.cjs", "README.md", "CHANGELOG.md", "install.ps1", "install.cmd", "uninstall.cmd", "check.cmd", "sync.cmd"],
   "keywords": ["magpie-plugin", "magpie-agent", "proma"],
   "engines": { "node": ">=22" },
   "magpie": { "agent": "./agent.js" },
-  "scripts": { "test": "node --test", "check": "node magpie-proma.cjs --check" },
+  "scripts": { "test": "node --test", "check": "node magpie-proma.cjs --check", "capabilities": "node capability-report.cjs" },
   "license": "UNLICENSED"
 }
