@@ -114,7 +114,7 @@ magpie plugin update
 
 ## 开发与许可
 
-[兼容性与能力规则](docs/COMPATIBILITY.md) · [开发、测试与发布](docs/RELEASING.md) · [更新记录](CHANGELOG.md)
+[兼容性与能力规则](docs/COMPATIBILITY.md) · [插件规范核对](docs/PLUGIN-COMPLIANCE.md) · [开发、测试与发布](docs/RELEASING.md) · [更新记录](CHANGELOG.md)
 
 本项目基于 [MIT License](LICENSE) 发布。
 

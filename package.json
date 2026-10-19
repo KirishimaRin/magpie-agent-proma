@@ -35,7 +35,9 @@
   "keywords": [
     "magpie-plugin",
     "magpie-agent",
-    "proma"
+    "proma",
+    "opencode",
+    "opencode-plugin"
   ],
   "engines": {
     "node": ">=22"
