@@ -6,7 +6,7 @@ export const agent = {
   config: '~/.proma/magpie-bridge.json',
   format: 'json',
   ua: ['proma'],
-  notice: '模型在 Proma 内选择。配置更新会在 Proma 完全退出后自动应用，再打开即可使用。',
+  notice: '模型在 Proma 内选择。接入或断开后，请从托盘完全退出并重开 Proma；断开时会在退出后删除插件专用渠道。',
 };
 
 // Omitting agent.model keeps the full model picker inside Proma.

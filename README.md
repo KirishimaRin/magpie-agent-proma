@@ -102,7 +102,7 @@ magpie plugin update
 
 ## 关闭、卸载与恢复
 
-- **关闭接入**：在 Agent 页关闭 Proma 接入，保持插件启用；退出 Proma，等待专用渠道被移除。
+- **关闭接入**：在 Agent 页关闭 Proma 接入，保持插件启用；从托盘完全退出 Proma，等待专用渠道被移除后再打开。运行中的 Proma 会继续显示已有渠道，诊断将明确显示待清理状态和数量。
 - **卸载插件**：先按上述步骤清理渠道，再在 Magpie 插件页删除插件；也可退出 Proma 后运行插件目录中的 uninstall.cmd。
 - **恢复配置**：关闭 Agent 接入、退出 Proma，把所需的 channels.json.magpie-backup-* 文件拖到 restore.cmd 上。恢复前会先备份当前配置。
 

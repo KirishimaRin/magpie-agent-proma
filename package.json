@@ -1,6 +1,6 @@
 {
   "name": "magpie-agent-proma",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Magpie Agent plugin for Proma with continuously synchronized models on Windows",
   "type": "module",
   "files": [

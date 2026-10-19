@@ -97,6 +97,30 @@ test('invalid manifest and inspection never overwrite config', async t => {
   assert.deepEqual(fs.readFileSync(f.engine.file), before);
 });
 
+test('disconnect reports pending removal while Proma runs, then removes only managed channels on exit', async t => {
+  const f = fixture(t);
+  f.manifest(['codex/gpt-6-astra', 'provider/claude-opus-4-6']);
+  await f.engine.tick();
+  const original = fs.readFileSync(f.engine.file);
+  const managedCount = f.read().channels.filter(c => c.id.startsWith(NATIVE_PREFIX)).length;
+  fs.writeFileSync(f.engine.manifest, '{"bridge":{}}');
+  f.setRunning(true);
+  for (const checkOnly of [false, true]) {
+    const pending = await f.engine.tick({ checkOnly });
+    assert.equal(pending.code, 'disconnect-pending');
+    assert.equal(pending.pendingCleanup, true);
+    assert.equal(pending.pendingChannels, managedCount);
+    assert.match(pending.status, /接入已关闭/);
+    assert.deepEqual(fs.readFileSync(f.engine.file), original);
+  }
+  f.setRunning(false);
+  const removed = await f.engine.tick();
+  assert.equal(removed.status, '专用渠道已移除');
+  assert.equal(removed.removedChannels, managedCount);
+  assert.deepEqual(f.read().channels, [f.other]);
+  assert.equal((await f.engine.tick()).status, '接入已关闭');
+});
+
 test('writer rejects concurrent locks and changed configuration', t => {
   const f = fixture(t);
   const original = fs.readFileSync(f.engine.file);

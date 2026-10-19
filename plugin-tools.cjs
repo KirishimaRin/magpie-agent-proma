@@ -35,7 +35,10 @@ async function diagnose(engine) {
   try {
     const status = JSON.parse(fs.readFileSync(path.join(path.dirname(engine.manifest), 'magpie-status.json'), 'utf8'));
     // An explicit allowlist keeps this report free of usernames, model names and credentials.
-    summary.lastSync = { code: status.code || null, version: status.pluginVersion, updatedAt: status.updatedAt, reselectRequired: status.reselectRequired === true };
+    summary.lastSync = { code: status.code || null, version: status.pluginVersion, updatedAt: status.updatedAt,
+      reselectRequired: status.reselectRequired === true, pendingCleanup: status.pendingCleanup === true,
+      pendingChannels: Number.isInteger(status.pendingChannels) ? status.pendingChannels : 0,
+    };
   } catch { summary.lastSync = null; }
   try { summary.check = await engine.tick({ checkOnly: true }); }
   catch { summary.check = { code: 'check-failed', status: '请检查配置 JSON、覆盖规则、加密格式及同步锁' }; }

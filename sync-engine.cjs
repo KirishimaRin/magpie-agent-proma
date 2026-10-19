@@ -68,7 +68,12 @@ class SyncEngine {
     const existing = config.channels.find(c => c.id === MANAGED_ID);
     let next;
     if (!bridge) {
-      if (!config.channels.some(c => c.id === MANAGED_ID || c.id.startsWith(NATIVE_PREFIX))) return { status: '接入已关闭' };
+      const owned = config.channels.filter(c => c.id === MANAGED_ID || c.id.startsWith(NATIVE_PREFIX));
+      if (!owned.length) return { status: '接入已关闭' };
+      if (this.deps.promaIsRunning()) return {
+        status: `接入已关闭，等待 Proma 完全退出后移除 ${owned.length} 个专用渠道`,
+        code: 'disconnect-pending', pendingCleanup: true, pendingChannels: owned.length,
+      };
       next = { ...config, channels: config.channels.filter(c => c.id !== MANAGED_ID && !c.id.startsWith(NATIVE_PREFIX)) };
     } else {
       if (!checkOnly && this.deps.promaIsRunning()) return { status: '等待 Proma 完全退出后应用更新', count: bridge.models.length };
@@ -93,13 +98,17 @@ class SyncEngine {
       }
     }
     if (checkOnly) return { status: bridge ? '检查通过，有待同步的模型配置' : '检查通过，待移除专用渠道', count: bridge?.models.length };
-    if (this.deps.promaIsRunning()) return { status: '等待 Proma 完全退出后应用更新', count: bridge?.models.length };
+    if (this.deps.promaIsRunning()) return bridge
+      ? { status: '等待 Proma 完全退出后应用更新', count: bridge.models.length }
+      : { status: '接入已关闭，等待 Proma 完全退出后清理专用渠道', code: 'disconnect-pending', pendingCleanup: true };
     if (manifestBytes && !fs.readFileSync(this.manifest).equals(manifestBytes)) return { status: '模型配置已变化，下次重试' };
     this.deps.writeConfig(this.file, original, next);
     if (bridge) this.lastSyncedInput = fingerprint(Buffer.from(`${JSON.stringify(next, null, 2)}\n`));
     const reselectRequired = config.channels.some(old => (old.id === MANAGED_ID || old.id.startsWith(NATIVE_PREFIX)) &&
       (!next.channels.some(channel => channel.id === old.id) || old.models?.some(model => !next.channels.find(channel => channel.id === old.id)?.models.some(current => current.id === model.id))));
-    return { status: bridge ? '同步完成' : '专用渠道已移除', count: bridge?.models.length, ...(reselectRequired ? { reselectRequired: true } : {}) };
+    return { status: bridge ? '同步完成' : '专用渠道已移除', count: bridge?.models.length,
+      ...(!bridge ? { removedChannels: config.channels.length - next.channels.length } : {}),
+      ...(reselectRequired ? { reselectRequired: true } : {}) };
   }
 }
 
