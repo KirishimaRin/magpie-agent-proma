@@ -65,9 +65,7 @@ async function main() {
   }
   assert.match(cli(['proma', '--help']), /fields: provider/);
   cli(['provider', 'add', 'smoke', 'chat=http://127.0.0.1:1/v1', 'key=dummy-test-key', 'models=gpt-6.1-sol,step-5-preview']);
-  cli(['proma', 'provider', 'magpie']);
-  const bridge = JSON.parse(fs.readFileSync(manifest)).bridge;
-  assert(bridge.models.some(model => model.id === 'smoke/gpt-6.1-sol'));
+  fs.writeFileSync(manifest, '{}');
   // The Bun host is started explicitly so its lifetime is controlled by this test.
   const host = spawn(bun, ['-e', `import plugin from ${JSON.stringify(pathToFileURL(installedEntry).href)}; await plugin({},{}); await new Promise(()=>{});`], {
     env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
@@ -75,6 +73,16 @@ async function main() {
   // Consume output without retaining or printing private config data.
   host.stdout.resume(); host.stderr.resume();
   try {
+    // Start disconnected, then connect while the Bun service is already running.
+    // This catches the real reconnect/startup path rather than only initial import.
+    const statusFile = path.join(root, 'magpie-status.json');
+    const readyDeadline = Date.now() + 10000;
+    while (!fs.existsSync(statusFile) && Date.now() < readyDeadline) await new Promise(resolve => setTimeout(resolve, 100));
+    assert(fs.existsSync(statusFile), 'Packaged host did not start while disconnected');
+    const connectedAt = Date.now();
+    cli(['proma', 'provider', 'magpie']);
+    const bridge = JSON.parse(fs.readFileSync(manifest)).bridge;
+    assert(bridge.models.some(model => model.id === 'smoke/gpt-6.1-sol'));
     let config;
     const deadline = Date.now() + 25000;
     while (Date.now() < deadline) {
@@ -83,6 +91,7 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 250));
     }
     assert(config.channels.some(channel => channel.id.startsWith('magpie-proma-native-')), 'Packaged Bun host did not sync isolated channels');
+    console.log(`Connected channels ready after ${Date.now() - connectedAt} ms, including Magpie CLI connection.`);
     assert.deepEqual(config.channels.find(channel => channel.id === 'untouched'), other);
     const response = await fetch(`http://127.0.0.1:${port}/health`, { headers: { authorization: 'Bearer ' + bridge.key }, signal: AbortSignal.timeout(3000) });
     assert.equal((await response.json()).version, require('./package.json').version);
