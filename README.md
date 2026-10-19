@@ -1,154 +1,127 @@
 # Magpie Agent 插件：Proma
 
-把 Magpie 已配置的供应商、订阅模型和路由组接入 Proma。Magpie 中出现 Proma Agent，开启接入后，模型目录持续同步到 Proma 的专用渠道，模型在 Proma 内选择。
+让 Proma 使用 Magpie 已配置的供应商、订阅模型与路由组，并为缺少识别规则的模型自动匹配原生思考菜单。每个用户的模型和能力都从自己的 Magpie 获取。
 
-基于 [官方插件开发文档](https://usemagpie.ai/docs/zh/plugins) 的 **Agent 插件**与 **OpenCode 服务端入口**，当前版本 `0.4.0`。支持 Windows；已验证本机 Magpie `0.1.1290` 和 Proma `0.19.58` 的配置加密格式。
+当前版本 **0.5.0**，Windows x64，MIT。已验证 Proma 0.19.58、渠道 schema 5/7/12；Magpie 本地测试版本 0.1.1290 / 0.1.1293。运行插件使用 Magpie 自带 Bun，开发测试使用 Node.js 22+。
 
-## 安装与使用
+## 安装
 
-1. 把此文件夹放在固定位置，例如 `E:\Project\Proma-magpie`。
-2. 在 Magpie → 插件 → 添加插件，输入文件夹路径；也可双击 `install.cmd`。Magpie 首次使用服务端插件时会自行准备 Bun。
-3. 在 Magpie → Agent 中找到 **Proma**，开启接入。模型在 Proma 内选择，因此此行只有连接开关。
-4. 从托盘完全退出 Proma，等待约 5 秒，再打开。
-5. 新建 Proma 会话，选择 **Magpie · 供应商 · 协议或模型名** 下的模型。0.3.1 自动删除旧的 **Magpie 本机** 全模型渠道，后续同步不再创建它。
+GitHub 发布后，在 Magpie → 插件 → 添加插件输入：
 
-供应商模型或可见模型列表变化后，Magpie 再次调用 `connect()`，同步组件每 5 秒检查桥接配置。Proma 正在运行时等待；完全退出后应用，随后重新打开即可看到新列表。无变化时不重复写配置或生成备份。
+```text
+github:KirishimaRin/magpie-agent-proma#main
+```
 
-同步保留其他渠道、默认模型选择、已有模型的显示名称和启用状态。新模型默认启用，消失的模型从插件专用渠道移出。可用 Magpie 的 Agent 模型可见性功能管理同步范围。
+或执行：
 
-## 思考强度（0.3.0）
+```powershell
+magpie plugin add github:KirishimaRin/magpie-agent-proma#main
+```
 
-旧渠道统一使用 Anthropic 协议和 `provider/model` ID，Proma 的原生能力规则匹配不到很多模型。新版增加原生模型渠道：
+本地使用：把本文件夹放在固定位置，在插件页添加其路径，或双击 install.cmd。已有本地安装时避免重复添加 GitHub 安装；先按卸载步骤移除旧安装。
 
-| 模型 | 协议 | 使用方式 |
-| --- | --- | --- |
-| GPT / o 系列 | OpenAI Responses | Agent 使用 Pi；匹配原生思考档位 |
-| Claude、Kimi、GLM、DeepSeek | Anthropic Messages | 匹配 Proma 原生能力规则 |
-| Gemini | Google | Gemini 原生思考设置；Agent 使用 Pi |
-| Grok、MiMo、MiniMax、Step | OpenAI Chat | 采用 Proma/Pi 目录中该模型已有的能力 |
+1. 启用插件，在 Magpie → Agent 找到 **Proma** 并开启接入。
+2. Proma 中至少保存过一个渠道，用于验证本机加密格式。
+3. 从托盘完全退出 Proma，等待同步后重新打开。
+4. 选择 **Magpie · 供应商 · 协议或模型名**，路由组在 **Magpie · 路由组 · 组名** 中。使用 Google/Responses 渠道的 Agent 会话选择 Pi。
+5. 菜单别名显示与实际调用模型分开管理；界面仍保留真实名称，请求始终发给真实供应商/模型或 group/组ID。
 
-认证代理监听 `127.0.0.1:3426`，把 Proma 使用的原生 ID 转回完整 Magpie ID。供应商由渠道 URL 精确区分。reasoning、thinking、output_config、generationConfig、工具调用和流式响应原样转发；质量检测插件的错误也原样返回。
+模型可见性变化由 Magpie 通知 Agent，插件每 5 秒检查桥接配置。Proma 正在运行时等候，退出后自动应用。插件不自动终止其他用户的 Proma 会话。旧的“Magpie 本机”全模型渠道会被移除。
 
-Proma 0.19.58 尚未识别 GPT-6.1，所以插件对 `gpt-6.1-sol` 使用本地 `gpt-6-astra` 能力别名，显示 low/medium/high/xhigh/max；名称仍显示 GPT-6.1，发往 Magpie 的 ID 仍是原始 `供应商/gpt-6.1-sol`。DeepSeek V4.1 Flash 使用 V4 Flash 的协议能力别名；免费 GLM 等后缀也在本地整理。实际模型 ID 保存在 `magpieModelId` 中；别名独占渠道以避免与同供应商的其他模型混淆。
+## 思考强度
 
-可显示档位使用当前 Proma 的能力表；0.4.0 为缺失菜单的模型增加下述自动模板匹配。升级后完全退出 Proma，在 Magpie 关闭再开启本插件，并从托盘退出、重启 Magpie 以加载新代理；等待同步后重开 Proma，改选原生渠道。旧会话若仍引用已删除的全模型渠道，请重新选择原生渠道中的模型。
+能力优先级：用户手动覆盖 → Magpie reasoning_levels → Agent efforts → models.dev reasoning_options。Magpie 能力每 5 分钟刷新，models.dev 每 24 小时刷新；目录变化提前检查，网络失败保留已有缓存。
 
-### 路由组（0.3.2）
-
-每个路由组有自己的「Magpie · 路由组 · 组名」渠道。插件只读 Magpie `providers.json` 的成员关系，包括嵌套组；未写入文件的自动组按 Magpie 自动组 ID 与目录模型的精确 slug 匹配能力族。成员属于相同能力族时使用对应原生 ID、协议和思考档位。混合模型、未知能力或循环成员配置使用通用 OpenAI Chat 渠道。
-
-实际请求的模型始终是 `group/组ID`，由 Magpie 自行执行顺序、轮询、智能选择等已有规则。成员配置变化后持续同步目录。删除过的 54 模型总渠道保持删除。
-
-## 自动匹配思考能力（0.4.0）
-
-插件保留已识别模型的原生接入，对缺失菜单的模型按能力数据选择现有 Proma 模板，无需修改 Proma 安装文件。
-
-数据优先级：Magpie `/v1/models` 的 `reasoning_levels` → Agent 目录的 `efforts` → models.dev `reasoning_options`。Magpie 明确返回空档位时保持该声明；`reasoning: true` 本身只说明模型具备推理能力。
-
-模板包括 GPT-6 Astra（low/medium/high/xhigh/max）、GLM-5.3（low/high/max）、Gemini 3.1 Pro（low/medium/high）、Gemini 3 Flash（minimal/low/medium/high）。只选择菜单全部档位都受供应商支持的模板，优先覆盖更多档位。原生菜单没有的 ultra 等额外档位，以及没有可匹配模板的组合，列在能力报告中；不把档位改名或偷偷降级。
-
-例如 Step 的 low/medium/high 对应 Gemini 菜单模板；界面名称和实际供应商模型仍是 Step。代理向 Magpie 的 Google 协议入口发送 Step 的完整真实 ID，由 Magpie 处理协议转换。路由组始终发送 group/组ID。
-
-Magpie 目录每 5 分钟刷新，models.dev 每 24 小时刷新。新目录 ID 触发提前检查；失败使用已有缓存并限制重试频率。缓存为 `~/.proma/magpie-capabilities.json`，只含模型能力，不含接入 Key；访问 models.dev 不发送本机配置或凭据。
+对 Proma 缺失原生菜单的模型，按真实档位匹配 capability-rules.json 中的模板；现有模板包括 GPT-6 Astra、GLM-5.3、Gemini 3.1 Pro、Gemini 3 Flash。仅展示模板与供应商共同支持的菜单档位。未匹配组合和额外档位可通过详细能力报告查看：
 
 ```powershell
 node capability-report.cjs
 ```
 
-报告显示每个模型的目录档位、数据来源、匹配模板和暂未覆盖档位。更新配置后请重新选择对应模型；使用 Google/Responses 渠道的 Agent 会话选择 Pi。
+[兼容性与私有模型覆盖](docs/COMPATIBILITY.md)介绍版本范围、模板列表和手动覆盖方式。菜单别名可能影响 Proma 自行推断的其他模型默认能力，具体范围也列在该文档中。
 
-## Git 基线与回退
+## 选项
 
-第一次提交 `e944a62` 保存 v0.3.2，标签为 `baseline-v0.3.2`。新功能在 `feature/dynamic-reasoning` 分支，`main` 保持基线。
+在 Magpie 的插件选项中设置 JSON。所有路径必须是绝对路径，下面的路径仅作格式示例：
 
-回退时先退出 Proma，在 Magpie 关闭本插件，然后执行：
-
-```powershell
-git switch main
+```json
+{
+  "port": 3426,
+  "promaExecutable": "D:/Apps/Proma/Proma.exe",
+  "allowUntestedProma": false
+}
 ```
 
-再开启插件，从托盘退出并重启 Magpie，等待同步后打开 Proma。重新测试新功能使用 `git switch feature/dynamic-reasoning`，同样重启 Magpie 加载插件。切换前保持工作区干净；现有配置修改前仍会自动备份。
+| 选项 | 默认或用途 |
+| --- | --- |
+| port | 3426，只监听 127.0.0.1；冲突时换端口并退出 Proma 等待同步 |
+| promaExecutable | 自动发现 Proma；便携版可手动指定 |
+| promaDirectory | 用户目录下 .proma；控制 channels.json 的位置 |
+| localStatePath | APPDATA/@proma/electron/Local State |
+| providersFile | Magpie 配置目录下 providers.json |
+| bridgeFile | 用户目录下 .proma/magpie-bridge.json；自定义 Agent 配置时才改，需双方一致 |
+| allowUntestedProma | false；显式开启可测试其他版本，仍须通过格式与凭据检查 |
+| cleanup | false；设为 true 进入只清理专用渠道的模式，保持插件开启直到清理完成 |
 
-## 两个入口的分工
+未知 Proma 版本默认暂停同步并提示。bridgeFile 的位置由 Agent 声明决定；单独改服务端选项不会迁移 Agent 的写入位置。
 
-- `agent.js`：官方 `magpie.agent` 入口，在 moejs 沙盒内运行，没有 Node API。`connect({gateway, models})` 按点分键路径写入 `~/.proma/magpie-bridge.json`。Magpie 负责专用 Key、模型变更通知和桥接配置恢复。
-- `server.js`：官方 OpenCode 服务端函数入口，在 Magpie 的 Bun 插件宿主内启动 `native-proxy.cjs` 并定时调用 `sync-engine.cjs`，处理原生模型路由、渠道合并和本机凭据加密。
+## 诊断
 
-两个入口打包在同一个插件中，无需额外的开机任务、后台服务或供应商。Proma 使用渠道数组和 Electron 加密字段，因此先经过桥接配置，再合并进渠道文件。
+双击 doctor.cmd 或 check.cmd，输出不含用户路径、私有模型名和凭据的诊断摘要。工具优先使用现有 Node，也可使用 Magpie 已下载的 Bun；需要指定时设置 MAGPIE_BUN_EXE。
 
-只有 Magpie 插件宿主运行时才会持续同步；退出 Magpie 后同步和本机代理随之停止。Proma 会话访问模型时需要 Magpie 网关运行。
+```powershell
+node plugin-tools.cjs doctor
+node plugin-tools.cjs doctor --options C:/path/to/options.json
+```
 
-## 持续更新
+同步状态保存在桥接文件同目录的 magpie-status.json。模型迁移时日志提示在 Proma 重新选择模型。提交问题时附诊断输出、版本和复现步骤，不上传 channels.json、桥接文件、Local State 或备份。
 
-**模型目录**自动同步，流程见上文。
+## 更新与回退
 
-**插件代码**使用 Magpie 官方 npm/Git 更新机制。源码无需构建，无安装脚本和第三方依赖。
-
-本地开发：修改本文件夹，关闭再开启插件，重新加载代码。
-
-长期维护：把本项目作为仓库根目录推送到自己的 GitHub 仓库，按分支安装：
-
-```text
-magpie plugin add github:YOUR_ACCOUNT/YOUR_REPOSITORY#main
+```powershell
 magpie plugin update
 ```
 
-占位地址替换成实际仓库。Magpie 检测分支新提交并提示更新。也可选定 npm 包名后发布；每次发布递增 `package.json` 版本并更新 `CHANGELOG.md`。
+普通 GitHub 插件按分支提交提示更新，用户点击更新或执行命令应用。更新后重启 Magpie，退出 Proma 等待同步，再重新打开；旧会话引用被迁移的渠道或模型时重新选择。模型自定义名称与启用状态按真实模型 ID 尽量迁移，其他渠道保持原样。
 
-按官方文档，普通 npm/Git 插件有更新提示，点击更新或运行 `magpie plugin update` 应用；`@magpie-community/*` 才享有文档所述的自动代码升级。本项目当前保存在本机，尚未发布到远程。
+首次工作区快照为 e944a62，标签 baseline-v0.3.2；思考强度首版为 421a546，标签 baseline-v0.4.0。main 为发布分支。源码回退时先关闭 Agent 接入、退出 Proma 并停止 Magpie，然后执行：
 
-`.github/workflows/ci.yml` 在 Windows 上运行测试和打包检查。发布前执行：
+```powershell
+git switch --detach baseline-v0.3.2
+```
+
+重启 Magpie 并恢复 Agent 接入，等待同步后打开 Proma。恢复新版使用 git switch main。工作区须保持干净。
+
+## 关闭、卸载与恢复
+
+**只关闭接入：**在 Agent 页关闭 Proma 接入，保持插件开启；退出 Proma，等待专用渠道被移除。
+
+**卸载：**退出 Proma，运行插件目录的 uninstall.cmd。脚本先恢复 Agent 桥接键，再清理专用渠道，最后移除插件。GitHub 安装也可按“关闭接入 → 等待清理 → 插件页删除”的顺序操作。完成后重启 Magpie。直接删除整个插件会同时停掉清理组件；遗留渠道可重新安装后清理，或在 Proma 手动删除 Magpie 专用渠道。
+
+每次写入前生成 channels.json.magpie-backup-*，加独占锁并再次检查进程和文件变化。恢复前关闭 Agent 接入、退出 Proma，将所需备份拖到 restore.cmd 上；恢复操作会先备份当前配置。亦可使用：
+
+```powershell
+node plugin-tools.cjs restore C:/path/to/channels.json.magpie-backup-...
+```
+
+异常退出留下同步锁时，退出 Magpie 和 Proma，确认同步进程结束，再删除 channels.json.magpie-sync.lock。备份包含加密凭据，应留在本机。
+
+## 开发与发布
 
 ```powershell
 node --test
-npm pack --dry-run
-npm pack
+node smoke-magpie.cjs C:/path/to/magpie.exe
+npm run release
 ```
 
-npm 发布前选定自己拥有的包名、补齐仓库信息并确定许可证。当前 `UNLICENSED` 保留代码发布许可决定。
+发布包在 release/，包括 ZIP、TGZ 和 SHA256 校验文件。CI 验证单元测试、打包和官方 Proma 菜单；v版本号标签触发 Release。详见[发布流程](docs/RELEASING.md)和[变更记录](CHANGELOG.md)。
 
-## 配置与恢复
+早期 sync.cmd / magpie-proma.cjs --apply 为独立导入备选，会创建另一旧式渠道；日常使用请选择 Agent 插件。
 
-- 渠道：`%USERPROFILE%\.proma\channels.json`
-- 桥接：`%USERPROFILE%\.proma\magpie-bridge.json`
-- Electron 密钥：`%APPDATA%\@proma\electron\Local State`
-- 原生渠道 ID 前缀：`magpie-proma-native-`；迁移会删除旧渠道 `magpie-proma-agent-v1`
-- 请求：本机网关的 `/v1/messages`，类型 `anthropic-compatible`
+## 数据与实现
 
-专用 Agent Key 由 Magpie 提供；供应商真实 API Key 留在 Magpie。桥接文件含本机接入 Key，应与配置一起留在本机。同步组件读取 Electron 的 DPAPI 加密密钥，用 AES-GCM 加密接入 Key，并先验证已有渠道的凭据格式。至少先在 Proma 保存一个渠道，供首次验证。
+agent.js 通过官方 Agent API 写桥接键；server.js 在 Magpie 的 Bun 宿主中运行认证代理与同步组件。请求和流式响应经 127.0.0.1 转发至 Magpie，质量检测错误原样返回。供应商 API Key 由 Magpie 管理。本插件读取本机 Electron 加密材料来保存接入 Key，权限与联网范围见[隐私说明](PRIVACY.md)。
 
-每次修改前保存 `channels.json.magpie-backup-*`，加独占同步锁，再检查 Proma 进程及配置变化，最后原子替换。恢复时完全退出 Proma，把选定备份复制回 `channels.json`。
-
-若系统异常退出后留下 `channels.json.magpie-sync.lock`，先退出 Magpie 和 Proma，确认无同步进程，再删除该锁文件并重开 Magpie。
-
-## 关闭与卸载
-
-在 Agent 页关闭 Proma 接入，保持插件开启。Proma 退出后，同步组件移除自己的专用渠道。
-
-本地安装可先退出 Proma，再双击 `uninstall.cmd`。Git/npm 安装请先在 Agent 页关闭接入，待专用渠道移除后，再在插件页删除插件。直接关闭或删除整个插件会同时停止同步组件，已有的 Proma 专用渠道可手动删除。
-
-## 检查
-
-```powershell
-# 无写入检查，需 Node.js 22+；正常插件运行使用 Magpie 自带 Bun
-node sync-engine.cjs --check
-
-# 临时目录中的单元和文件写入测试
-node --test
-
-# 实际 Magpie 的隔离测试
-node smoke-magpie.cjs C:\path\to\magpie.exe
-```
-
-隔离测试使用项目内 `.smoke` 配置目录，验证安装、注册、连接、模型目录更新和恢复。测试桥接文件也在 `.smoke` 下。
-
-安装后在 Proma 发送简短消息，再要求读取一个项目文件，可验证所选供应商的对话和工具调用。测试脚本不发送模型推理请求。
-
-早期独立导入工具 `sync.cmd` / `magpie-proma.cjs --apply` 保留作手动备选，使用另一渠道 ID，不参加插件自动同步。
-
-## 参考
-
-- [官方插件开发文档](https://usemagpie.ai/docs/zh/plugins)
-- [Magpie Agent 插件运行时](https://github.com/yetone/magpie/blob/main/internal/agentplug/agentplug.go)
-- [Proma 渠道与凭据加密](https://github.com/proma-ai/Proma/blob/main/apps/electron/src/main/lib/channel-manager.ts)
-- [Proma 请求地址处理](https://github.com/proma-ai/Proma/blob/main/packages/core/src/providers/url-utils.ts)
+- [Magpie 官方插件文档](https://usemagpie.ai/docs/zh/plugins)
+- [Proma 项目](https://github.com/proma-ai/Proma)
+- [models.dev 能力目录](https://models.dev/api.json)

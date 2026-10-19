@@ -1,5 +1,7 @@
 name: Validate plugin
 on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: windows-latest
@@ -10,3 +12,45 @@ jobs:
           node-version: 22
       - run: node --test
       - run: npm pack --dry-run
+      - run: npm run release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-package
+          path: |
+            release/*.zip
+            release/*.tgz
+            release/SHA256SUMS.txt
+  proma-compatibility:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify templates against official Proma 0.19.58
+        shell: pwsh
+        run: ./scripts/ci-compatibility.ps1
+  magpie-integration:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download pinned official Magpie
+        run: node scripts/download.cjs https://github.com/yetone/magpie/releases/download/v0.1.1293/magpie-windows-amd64.exe .smoke/magpie.exe de4c747c44319c5fd8f5ab925cada5a48e75ecb89bec39d5ed73bd29c93e9837
+      - name: Agent and installer integration
+        shell: pwsh
+        run: |
+          $env:MAGPIE_TEST_EXE = (Resolve-Path .smoke/magpie.exe).Path
+          node --test installer.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Installer test failed' }
+          node smoke-magpie.cjs $env:MAGPIE_TEST_EXE
+          if ($LASTEXITCODE -ne 0) { throw 'Agent test failed' }
+      - run: npm run release
+      - name: Full Git package and Bun lifecycle
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          node smoke-package.cjs (Resolve-Path .smoke/magpie.exe).Path auto "release/magpie-agent-proma-$version.tgz"
+          if ($LASTEXITCODE -ne 0) { throw 'Package test failed' }

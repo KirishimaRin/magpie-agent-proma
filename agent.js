@@ -23,6 +23,7 @@ export function connect({ gateway, models }) {
       ...(Array.isArray(model.efforts) ? { efforts: model.efforts } : {}),
       ...(typeof model.context === 'number' ? { context: model.context } : {}),
       ...(typeof model.output === 'number' ? { output: model.output } : {}),
+      ...(typeof model.images === 'boolean' ? { images: model.images } : {}),
     })),
   };
 }

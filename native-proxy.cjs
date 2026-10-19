@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const { buildRoutes, enrichGroups } = require('./native-channels.cjs');
 const { parseBridge } = require('./sync-engine.cjs');
 const { enrichCapabilities } = require('./reasoning-capabilities.cjs');
-const VERSION = '0.4.0';
+const VERSION = require('./package.json').version;
 const LIMIT = 16 * 1024 * 1024;
 
 function authorized(request, key, url) {
@@ -105,17 +105,17 @@ function listen(server, port = 3426) {
   });
 }
 
-async function startNativeProxy(manifest) {
-  const loadBridge = () => fs.existsSync(manifest) ? enrichCapabilities(enrichGroups(parseBridge(JSON.parse(fs.readFileSync(manifest, 'utf8').replace(/^\uFEFF/, '')))), manifest) : null;
+async function startNativeProxy(manifest, { port = 3426, providersFile } = {}) {
+  const loadBridge = () => fs.existsSync(manifest) ? enrichCapabilities(enrichGroups(parseBridge(JSON.parse(fs.readFileSync(manifest, 'utf8').replace(/^\uFEFF/, ''))), providersFile), manifest) : null;
   const server = createNativeProxy({ loadBridge });
   try {
-    await listen(server);
+    await listen(server, port);
     return server;
   } catch (error) {
     if (error.code !== 'EADDRINUSE') throw error;
     const bridge = loadBridge();
     if (!bridge) throw error;
-    const result = await fetch('http://127.0.0.1:3426/health', { headers: { authorization: `Bearer ${bridge.key}` }, signal: AbortSignal.timeout(2000), redirect: 'error' });
+    const result = await fetch(`http://127.0.0.1:${port}/health`, { headers: { authorization: `Bearer ${bridge.key}` }, signal: AbortSignal.timeout(2000), redirect: 'error' });
     const info = await result.json();
     if (!result.ok || info.plugin !== 'magpie-agent-proma' || info.version !== VERSION) throw error;
     return null; // Another Magpie host owns the same compatible proxy.

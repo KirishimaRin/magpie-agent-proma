@@ -7,6 +7,8 @@ const core = require('./magpie-proma.cjs');
 const { mergeNativeChannels, enrichGroups, NATIVE_PREFIX } = require('./native-channels.cjs');
 const { enrichCapabilities, normalizeLevels } = require('./reasoning-capabilities.cjs');
 const MANAGED_ID = 'magpie-proma-agent-v1';
+const { runtimeOptions } = require('./runtime-options.cjs');
+const { assessCompatibility } = require('./compatibility.cjs');
 
 function parseBridge(document) {
   if (!document || typeof document !== 'object' || Array.isArray(document)) throw new Error('无效的桥接配置。');
@@ -26,6 +28,9 @@ function parseBridge(document) {
     if (!seen.has(model.id)) {
       models.push({ id: model.id, name: typeof model.name === 'string' && model.name.trim() ? model.name : model.id,
         ...(Array.isArray(model.efforts) ? { efforts: normalizeLevels(model.efforts) } : {}),
+        ...(Number.isSafeInteger(model.context) && model.context > 0 ? { context: model.context } : {}),
+        ...(Number.isSafeInteger(model.output) && model.output > 0 ? { output: model.output } : {}),
+        ...(typeof model.images === 'boolean' ? { images: model.images } : {}),
       });
       seen.add(model.id);
     }
@@ -35,11 +40,12 @@ function parseBridge(document) {
 }
 
 class SyncEngine {
-  constructor({ home = os.homedir(), appData = process.env.APPDATA || '', dependencies = {} } = {}) {
-    this.file = path.join(home, '.proma', 'channels.json');
-    this.manifest = path.join(home, '.proma', 'magpie-bridge.json');
-    this.state = path.join(appData, '@proma', 'electron', 'Local State');
-    this.deps = { ...core, enrichGroups, enrichCapabilities, ...dependencies };
+  constructor({ home = os.homedir(), appData = process.env.APPDATA || '', options = {}, dependencies = {} } = {}) {
+    this.options = runtimeOptions(options, { home, appData });
+    this.file = path.join(this.options.promaDirectory, 'channels.json');
+    this.manifest = this.options.bridgeFile;
+    this.state = this.options.localStatePath;
+    this.deps = { ...core, enrichGroups, enrichCapabilities, assessCompatibility, ...dependencies };
   }
 
   async tick({ checkOnly = false, remove = false } = {}) {
@@ -47,13 +53,18 @@ class SyncEngine {
     if (!fs.existsSync(this.file)) return { status: '等待 Proma 初始化' };
     if (!remove && !fs.existsSync(this.manifest)) return { status: '等待在 Magpie Agent 页开启 Proma 接入' };
     const manifestBytes = remove ? null : fs.readFileSync(this.manifest);
-    const bridge = remove ? null : this.deps.enrichCapabilities(this.deps.enrichGroups(parseBridge(JSON.parse(manifestBytes.toString('utf8').replace(/^\uFEFF/, '')))), this.manifest);
+    const bridge = remove ? null : this.deps.enrichCapabilities(this.deps.enrichGroups(parseBridge(JSON.parse(manifestBytes.toString('utf8').replace(/^\uFEFF/, ''))), this.options.providersFile), this.manifest);
+    if (bridge) {
+      const compatibility = this.deps.assessCompatibility({ ...this.options, rememberInstallation: !checkOnly });
+      if (!compatibility.ok) return { status: compatibility.message, code: compatibility.code, compatibility };
+    }
     const original = fs.readFileSync(this.file);
     const stateStamp = fs.existsSync(this.state) ? String(fs.statSync(this.state).mtimeMs) : '';
-    const fingerprint = (configBytes) => crypto.createHash('sha256').update(manifestBytes).update(JSON.stringify(bridge?.models)).update(configBytes).update(stateStamp).digest('hex');
+    const fingerprint = (configBytes) => crypto.createHash('sha256').update(manifestBytes).update(JSON.stringify(bridge?.models)).update(this.options.origin).update(configBytes).update(stateStamp).digest('hex');
     if (bridge && this.lastSyncedInput === fingerprint(original)) return { status: '已同步', count: bridge.models.length };
     const config = JSON.parse(original.toString('utf8').replace(/^\uFEFF/, ''));
     if (!Number.isInteger(config.version) || config.version < 2 || !Array.isArray(config.channels)) throw new Error('不支持的 Proma 配置格式。');
+    if (bridge && !require('./capability-rules.json').channelSchemas.includes(config.version)) return { status: 'Proma 渠道格式尚未验证，已保留配置', code: 'unsupported-schema' };
     const existing = config.channels.find(c => c.id === MANAGED_ID);
     let next;
     if (!bridge) {
@@ -71,7 +82,7 @@ class SyncEngine {
           ? reference.apiKey : this.deps.encryptToken(key, bridge.key);
       } finally { key.fill(0); }
       // Read legacy model preferences during migration, then permanently remove its channel.
-      next = mergeNativeChannels(config, bridge, encrypted);
+      next = mergeNativeChannels(config, bridge, encrypted, Date.now(), this.options);
       next.channels = next.channels.filter(c => c.id !== MANAGED_ID);
       const withoutTimestamp = value => {
         return JSON.stringify(value.map(({ updatedAt, ...rest }) => rest));
@@ -86,7 +97,9 @@ class SyncEngine {
     if (manifestBytes && !fs.readFileSync(this.manifest).equals(manifestBytes)) return { status: '模型配置已变化，下次重试' };
     this.deps.writeConfig(this.file, original, next);
     if (bridge) this.lastSyncedInput = fingerprint(Buffer.from(`${JSON.stringify(next, null, 2)}\n`));
-    return { status: bridge ? '同步完成' : '专用渠道已移除', count: bridge?.models.length };
+    const reselectRequired = config.channels.some(old => (old.id === MANAGED_ID || old.id.startsWith(NATIVE_PREFIX)) &&
+      (!next.channels.some(channel => channel.id === old.id) || old.models?.some(model => !next.channels.find(channel => channel.id === old.id)?.models.some(current => current.id === model.id))));
+    return { status: bridge ? '同步完成' : '专用渠道已移除', count: bridge?.models.length, ...(reselectRequired ? { reselectRequired: true } : {}) };
   }
 }
 
@@ -98,6 +111,7 @@ if (require.main === module) {
     process.exitCode = 1;
   } else new SyncEngine().tick({ checkOnly: mode === '--check', remove: mode === '--remove' }).then(result => {
     console.log(result.status);
+    if (result.code) process.exitCode = 1;
     if (mode === '--remove' && result.status.includes('等待 Proma')) process.exitCode = 1;
   }).catch(() => {
     console.error('同步检查失败：请检查 Proma 初始化、配置 JSON、Local State 加密格式和同步锁。凭据不会输出。');

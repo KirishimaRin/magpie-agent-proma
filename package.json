@@ -1,13 +1,64 @@
 {
   "name": "magpie-agent-proma",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Magpie Agent plugin for Proma with continuously synchronized models on Windows",
   "type": "module",
   "main": "./server.js",
-  "files": ["agent.js", "server.js", "sync-engine.cjs", "native-channels.cjs", "native-proxy.cjs", "reasoning-capabilities.cjs", "capability-report.cjs", "magpie-proma.cjs", "README.md", "CHANGELOG.md", "install.ps1", "install.cmd", "uninstall.cmd", "check.cmd", "sync.cmd"],
-  "keywords": ["magpie-plugin", "magpie-agent", "proma"],
-  "engines": { "node": ">=22" },
-  "magpie": { "agent": "./agent.js" },
-  "scripts": { "test": "node --test", "check": "node magpie-proma.cjs --check", "capabilities": "node capability-report.cjs" },
-  "license": "UNLICENSED"
+  "files": [
+    "agent.js",
+    "server.js",
+    "sync-engine.cjs",
+    "native-channels.cjs",
+    "native-proxy.cjs",
+    "reasoning-capabilities.cjs",
+    "capability-report.cjs",
+    "magpie-proma.cjs",
+    "README.md",
+    "CHANGELOG.md",
+    "install.ps1",
+    "install.cmd",
+    "uninstall.cmd",
+    "check.cmd",
+    "sync.cmd",
+    "capability-rules.json",
+    "compatibility.cjs",
+    "runtime-options.cjs",
+    "plugin-tools.cjs",
+    "run-tool.ps1",
+    "doctor.cmd",
+    "restore.cmd",
+    "icon.svg",
+    "LICENSE",
+    "docs",
+    "PRIVACY.md"
+  ],
+  "keywords": [
+    "magpie-plugin",
+    "magpie-agent",
+    "proma"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "magpie": {
+    "agent": "./agent.js",
+    "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTYiIGZpbGw9IiMxODNkMmEiLz48cGF0aCBkPSJNMTYgNDRWMjBoOGw4IDEzIDgtMTNoOHYyNGgtOFYzM2wtOCAxMi04LTEydjExeiIgZmlsbD0iI2VhZjRlOSIvPjwvc3ZnPgo="
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node plugin-tools.cjs doctor",
+    "capabilities": "node capability-report.cjs",
+    "release": "node scripts/release.cjs",
+    "test:magpie": "node smoke-magpie.cjs"
+  },
+  "license": "MIT",
+  "author": "KirishimaRin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KirishimaRin/magpie-agent-proma.git"
+  },
+  "homepage": "https://github.com/KirishimaRin/magpie-agent-proma#readme",
+  "bugs": {
+    "url": "https://github.com/KirishimaRin/magpie-agent-proma/issues"
+  }
 }

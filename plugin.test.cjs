@@ -16,6 +16,7 @@ function fixture(t) {
   const key = crypto.randomBytes(32);
   let running = false;
   const engine = new SyncEngine({ home, appData: home, dependencies: {
+    assessCompatibility: () => ({ ok: true, code: 'fixture' }),
     loadEncryptionKey: () => Buffer.from(key),
     promaIsRunning: () => running,
     writeConfig: (file, original, config) => core.writeConfig(file, original, config, { isRunning: () => running }),

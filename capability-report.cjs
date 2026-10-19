@@ -6,8 +6,8 @@ const { parseBridge } = require('./sync-engine.cjs');
 const { nativeModel, enrichGroups } = require('./native-channels.cjs');
 const { enrichCapabilities, knownNativeMenu } = require('./reasoning-capabilities.cjs');
 
-function report(manifest = path.join(os.homedir(), '.proma', 'magpie-bridge.json')) {
-  const bridge = enrichCapabilities(enrichGroups(parseBridge(JSON.parse(fs.readFileSync(manifest, 'utf8').replace(/^\uFEFF/, '')))), manifest);
+function report(manifest = path.join(os.homedir(), '.proma', 'magpie-bridge.json'), providersFile) {
+  const bridge = enrichCapabilities(enrichGroups(parseBridge(JSON.parse(fs.readFileSync(manifest, 'utf8').replace(/^\uFEFF/, ''))), providersFile), manifest);
   if (!bridge) return [];
   return bridge.models.map(model => {
     const native = nativeModel(model);

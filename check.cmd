@@ -1,5 +1,4 @@
 @echo off
 chcp 65001 >nul
-cd /d "%~dp0"
-node "%~dp0magpie-proma.cjs" --check
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0run-tool.ps1" -Action doctor
 pause

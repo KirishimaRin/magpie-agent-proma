@@ -42,7 +42,8 @@ function nativeModel(model) {
     source, bucket: source, id: rawId, protocol: 'chat', upstream: model.id, name: model.name || rawId,
   } : null);
   if (!native) return null;
-  const template = !knownNativeMenu(native) && matchTemplate(model.capability);
+  Object.assign(native, { context: model.context, output: model.output, images: model.images });
+  const template = (!knownNativeMenu(native) || model.capability?.template) && matchTemplate(model.capability);
   if (!template) return native;
   return {
     ...native, id: template.id, protocol: template.protocol,
@@ -73,9 +74,9 @@ function attachGroupMembers(bridge, groups) {
   return { ...bridge, models: bridge.models.map(model => model.id.startsWith('group/') ? { ...model, groupMembers: expand(model.id) } : model) };
 }
 
-function enrichGroups(bridge) {
+function enrichGroups(bridge, providersFile) {
   if (!bridge) return bridge;
-  const file = path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'magpie', 'providers.json');
+  const file = providersFile || path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'magpie', 'providers.json');
   const groups = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')).groups : [];
   return attachGroupMembers(bridge, groups);
 }
@@ -100,15 +101,17 @@ function buildRoutes(models) {
   return routes;
 }
 
-function mergeNativeChannels(config, bridge, encryptedKey, now = Date.now()) {
+function mergeNativeChannels(config, bridge, encryptedKey, now = Date.now(), { origin = PROXY_ORIGIN } = {}) {
   const oldById = new Map(config.channels.map(channel => [channel.id, channel]));
   const legacyModels = new Map(config.channels.filter(c => c.id === 'magpie-proma-agent-v1').flatMap(c => c.models || []).map(m => [m.id, m]));
+  const preferences = new Map(config.channels.filter(c => c.id.startsWith(NATIVE_PREFIX)).flatMap(channel => (channel.models || []).map(model => [model.magpieModelId, { model, channel }])));
   const channels = [];
   for (const [routeId, route] of buildRoutes(bridge.models)) {
     const id = NATIVE_PREFIX + crypto.createHash('sha256').update(routeId).digest('hex').slice(0, 16);
     const previous = oldById.get(id);
+    const migrated = [...route.models.values()].map(model => preferences.get(model.upstream)).filter(Boolean);
     const oldModels = new Map((previous?.models || []).map(model => [model.id, model]));
-    const base = `${PROXY_ORIGIN}/p/${routeId}`;
+    const base = `${origin}/p/${routeId}`;
     const label = { responses: 'GPT', google: 'Gemini', anthropic: 'Messages', chat: 'Chat' }[route.protocol];
     const channel = {
       ...previous, id,
@@ -117,13 +120,15 @@ function mergeNativeChannels(config, bridge, encryptedKey, now = Date.now()) {
       baseUrl: base + (route.protocol === 'anthropic' ? '/v1/messages' : route.protocol === 'google' ? '' : '/v1'),
       apiKey: encryptedKey,
       models: [...route.models.values()].map(model => {
-        const old = oldModels.get(model.id);
+        const old = oldModels.get(model.id) || preferences.get(model.upstream)?.model;
         const legacy = legacyModels.get(model.upstream);
-        return { ...old, id: model.id, name: old?.name || model.name, enabled: old?.enabled ?? legacy?.enabled ?? true, source: 'fetched', magpieModelId: model.upstream,
+        const { magpieReasoningTemplate, magpieMenuLevels, ...retained } = old || {};
+        return { ...retained, id: model.id, name: old?.name || model.name, enabled: old?.enabled ?? legacy?.enabled ?? true, source: 'fetched', magpieModelId: model.upstream,
+          magpieCapabilities: { ...(model.context ? { context: model.context } : {}), ...(model.output ? { output: model.output } : {}), ...(typeof model.images === 'boolean' ? { images: model.images } : {}) },
           ...(model.reasoningTemplate ? { magpieReasoningTemplate: model.reasoningTemplate, magpieMenuLevels: model.templateLevels } : {}),
         };
       }),
-      enabled: previous?.enabled ?? true,
+      enabled: previous?.enabled ?? (migrated.length ? migrated.every(item => item.channel.enabled !== false) : true),
       createdAt: previous?.createdAt || now,
       updatedAt: now,
     };

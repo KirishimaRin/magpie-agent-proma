@@ -2,12 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const LEVELS = ['none', 'off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
-const TEMPLATES = [
-  { id: 'gpt-6-astra', protocol: 'responses', levels: ['low', 'medium', 'high', 'xhigh', 'max'] },
-  { id: 'glm-5.3', protocol: 'anthropic', levels: ['low', 'high', 'max'] },
-  { id: 'gemini-3.1-pro', protocol: 'google', levels: ['low', 'medium', 'high'] },
-  { id: 'gemini-3-flash-preview', protocol: 'google', levels: ['minimal', 'low', 'medium', 'high'] },
-];
+const { templates: TEMPLATES } = require('./capability-rules.json');
 
 function normalizeLevels(values) {
   if (!Array.isArray(values)) return [];
@@ -27,7 +22,7 @@ function matchTemplate(capability) {
   const actual = normalizeLevels(capability?.levels);
   if (capability?.reasoning === false || actual.length < 2) return undefined;
   // Expose only real, adjustable source levels. Never rename or clamp a requested level.
-  return TEMPLATES.filter(template => template.levels.every(level => actual.includes(level)))
+  return TEMPLATES.filter(template => (!capability.template || template.id === capability.template) && template.levels.every(level => actual.includes(level)))
     .sort((a, b) => b.levels.length - a.levels.length)[0];
 }
 
@@ -83,7 +78,20 @@ function attachCapabilities(bridge, snapshot) {
 }
 
 function enrichCapabilities(bridge, manifest) {
-  return attachCapabilities(bridge, readSnapshot(path.join(path.dirname(manifest), 'magpie-capabilities.json')));
+  const directory = path.dirname(manifest);
+  const enriched = attachCapabilities(bridge, readSnapshot(path.join(directory, 'magpie-capabilities.json')));
+  const file = path.join(directory, 'magpie-model-overrides.json');
+  if (!enriched || !fs.existsSync(file)) return enriched;
+  const overrides = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+  if (overrides.version !== 1 || !overrides.models || typeof overrides.models !== 'object' || Array.isArray(overrides.models)) throw new Error('能力覆盖配置格式错误');
+  return { ...enriched, models: enriched.models.map(model => {
+    if (!Object.hasOwn(overrides.models, model.id)) return model;
+    const value = overrides.models[model.id];
+    if (!value || !Array.isArray(value.levels) || value.levels.some(level => !LEVELS.includes(level)) || (value.template && !TEMPLATES.some(t => t.id === value.template))) throw new Error('能力覆盖档位或模板无效');
+    const capability = { reasoning: value.levels.length > 0, levels: normalizeLevels(value.levels), source: 'user-override', ...(value.template ? { template: value.template } : {}) };
+    if (value.template && !matchTemplate(capability)) throw new Error('覆盖模板包含未声明的档位');
+    return { ...model, capability };
+  }) };
 }
 
 async function refreshCapabilities(bridge, manifest, { fetchFn = fetch, now = Date.now() } = {}) {

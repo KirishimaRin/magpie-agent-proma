@@ -1,0 +1,20 @@
+name: Bug report / 问题反馈
+description: Installation, synchronization or reasoning menu problems
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Magpie / Proma / plugin versions
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps and expected result / 复现步骤与预期结果
+    validations:
+      required: true
+  - type: textarea
+    id: diagnosis
+    attributes:
+      label: Output from doctor.cmd / 脱敏诊断结果
+      description: Share doctor output only. Keep channels.json, bridge files, Local State and backups private.

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "testedPromaVersions": [
+    "0.19.58"
+  ],
+  "templates": [
+    {
+      "id": "gpt-6-astra",
+      "protocol": "responses",
+      "levels": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "glm-5.3",
+      "protocol": "anthropic",
+      "levels": [
+        "low",
+        "high",
+        "max"
+      ]
+    },
+    {
+      "id": "gemini-3.1-pro",
+      "protocol": "google",
+      "levels": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "gemini-3-flash-preview",
+      "protocol": "google",
+      "levels": [
+        "minimal",
+        "low",
+        "medium",
+        "high"
+      ]
+    }
+  ],
+  "channelSchemas": [
+    5,
+    7,
+    12
+  ]
+}
